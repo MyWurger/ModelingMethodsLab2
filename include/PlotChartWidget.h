@@ -122,6 +122,8 @@ public:
     void SetLegendVisible(bool enabled);
     // Меняет выравнивание заголовка карточки.
     void SetTitleAlignment(Qt::Alignment alignment);
+    // Настраивает резерв снизу под подписи делений оси X.
+    void SetBottomAxisLabelReserve(int chartMarginBottom, int layoutMarginBottom);
 
 private:
     // InteractiveChartView получает доступ к закрытым данным виджета,

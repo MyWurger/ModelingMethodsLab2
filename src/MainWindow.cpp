@@ -472,10 +472,16 @@ void MainWindow::BuildUi()
                                 "значение",
                                 "плотность",
                                 histogramsBundleCard);
+        histogramPlots_[index]->SetBottomAxisLabelReserve(12, 4);
         histogramPlots_[index]->SetLegendVisible(false);
         histogramPlots_[index]->SetTitleAlignment(Qt::AlignHCenter);
+        histogramPlots_[index]->setMinimumHeight(336);
         histogramsGrid->addWidget(histogramPlots_[index], static_cast<int>(index / 2), static_cast<int>(index % 2));
     }
+    histogramsGrid->setColumnStretch(0, 1);
+    histogramsGrid->setColumnStretch(1, 1);
+    histogramsGrid->setRowStretch(0, 1);
+    histogramsGrid->setRowStretch(1, 1);
     histogramsTabLayout->addWidget(histogramsBundleCard, 1);
 
     auto* trajectoryTab = new QWidget(resultsTabs_);
@@ -491,12 +497,42 @@ void MainWindow::BuildUi()
 
     sequencePlot_ =
         new PlotChartWidget("Первые наблюдения компонентов X", "номер наблюдения", "значение", trajectoryBundleCard);
-    sequencePlot_->SetHomeViewScale(0.40, 1.0);
+    sequencePlot_->setObjectName("embeddedPlotCard");
+    sequencePlot_->SetBottomAxisLabelReserve(24, 8);
+    sequencePlot_->SetHomeViewScale(0.32, 1.0);
     sequencePlot_->SetAutoFitYToVisibleX(false);
     sequencePlot_->SetHomeViewStartAtZero(true);
-    sequencePlot_->setMinimumHeight(470);
-    sequencePlot_->setMaximumHeight(560);
-    trajectoryBundleLayout->addWidget(sequencePlot_, 1);
+    sequencePlot_->setMinimumHeight(400);
+    sequencePlot_->setMaximumHeight(480);
+    if (auto* emptyStateLabel = sequencePlot_->findChild<QLabel*>("plotEmptyState"); emptyStateLabel != nullptr)
+    {
+        emptyStateLabel->setMaximumHeight(300);
+        emptyStateLabel->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
+        emptyStateLabel->setContentsMargins(0, 0, 0, 18);
+    }
+    if (auto* sequencePlotLayout = sequencePlot_->layout(); sequencePlotLayout != nullptr)
+    {
+        sequencePlotLayout->setContentsMargins(7, 7, 7, 8);
+    }
+
+    auto* trajectoryPlotCard = new QFrame(trajectoryBundleCard);
+    trajectoryPlotCard->setObjectName("plotCard");
+    auto* trajectoryPlotLayout = new QVBoxLayout(trajectoryPlotCard);
+    trajectoryPlotLayout->setContentsMargins(4, 4, 4, 0);
+    trajectoryPlotLayout->setSpacing(0);
+    trajectoryPlotLayout->addWidget(sequencePlot_);
+
+    auto* trajectoryBottomBorder = new QFrame(trajectoryPlotCard);
+    trajectoryBottomBorder->setObjectName("trajectoryCardBottomBorder");
+    trajectoryBottomBorder->setFixedHeight(1);
+    auto* trajectoryBottomBorderHost = new QWidget(trajectoryPlotCard);
+    auto* trajectoryBottomBorderLayout = new QHBoxLayout(trajectoryBottomBorderHost);
+    trajectoryBottomBorderLayout->setContentsMargins(5, 0, 5, 0);
+    trajectoryBottomBorderLayout->setSpacing(0);
+    trajectoryBottomBorderLayout->addWidget(trajectoryBottomBorder);
+    trajectoryPlotLayout->addSpacing(0);
+    trajectoryPlotLayout->addWidget(trajectoryBottomBorderHost);
+    trajectoryBundleLayout->addWidget(trajectoryPlotCard, 1);
 
     previewTableModel_ = new NumericMatrixModel(this);
     previewTable_ = new QTableView(trajectoryBundleCard);
@@ -619,6 +655,19 @@ void MainWindow::ApplyTheme()
             border: 1px solid #d9e2ec;
             border-radius: 16px;
             background: #ffffff;
+        }
+
+        QFrame#trajectoryCardBottomBorder {
+            background: #d9e2ec;
+            border: none;
+            min-height: 1px;
+            max-height: 1px;
+        }
+
+        QFrame#embeddedPlotCard {
+            border: none;
+            border-radius: 0px;
+            background: transparent;
         }
 
         QFrame#contentBundleCard {

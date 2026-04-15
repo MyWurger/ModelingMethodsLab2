@@ -148,15 +148,9 @@ PlotChartWidget::PlotChartWidget(const QString& title,
     legendFont.setPointSize(13);
     legendFont.setWeight(QFont::DemiBold);
     chart_->legend()->setFont(legendFont);
-    // Убираем лишние внешние отступы самого chart.
-    chart_->setMargins(QMargins(0, 0, 0, 0));
-
-    // У внутреннего layout диаграммы тоже убираем поля,
-    // чтобы максимально использовать доступную площадь.
-    if (chart_->layout() != nullptr)
-    {
-        chart_->layout()->setContentsMargins(0, 0, 0, 0);
-    }
+    // По умолчанию держим компактный нижний резерв.
+    // Для отдельных графиков его можно увеличить точечно.
+    SetBottomAxisLabelReserve(18, 6);
 
     // Создаем числовые оси по x и y.
     axisX_ = new QValueAxis();
@@ -170,6 +164,8 @@ PlotChartWidget::PlotChartWidget(const QString& title,
     // как в него будут загружены реальные данные.
     axisX_->setLabelsColor(QColor("#334155"));
     axisY_->setLabelsColor(QColor("#334155"));
+    axisX_->setLabelsVisible(true);
+    axisY_->setLabelsVisible(true);
     axisX_->setGridLineColor(QColor("#d3dee9"));
     axisY_->setGridLineColor(QColor("#d3dee9"));
     axisX_->setMinorGridLineColor(QColor("#e6edf5"));
@@ -566,6 +562,21 @@ void PlotChartWidget::SetTitleAlignment(Qt::Alignment alignment)
     if (titleLabel_ != nullptr)
     {
         titleLabel_->setAlignment(alignment);
+    }
+}
+
+void PlotChartWidget::SetBottomAxisLabelReserve(int chartMarginBottom, int layoutMarginBottom)
+{
+    if (chart_ == nullptr)
+    {
+        return;
+    }
+
+    chart_->setMargins(QMargins(2, 0, 2, std::max(0, chartMarginBottom)));
+
+    if (chart_->layout() != nullptr)
+    {
+        chart_->layout()->setContentsMargins(0, 0, 0, std::max(0, layoutMarginBottom));
     }
 }
 
