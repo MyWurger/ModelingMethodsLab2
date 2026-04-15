@@ -504,16 +504,6 @@ void MainWindow::BuildUi()
     sequencePlot_->SetHomeViewStartAtZero(true);
     sequencePlot_->setMinimumHeight(400);
     sequencePlot_->setMaximumHeight(480);
-    if (auto* emptyStateLabel = sequencePlot_->findChild<QLabel*>("plotEmptyState"); emptyStateLabel != nullptr)
-    {
-        emptyStateLabel->setMaximumHeight(300);
-        emptyStateLabel->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
-        emptyStateLabel->setContentsMargins(0, 0, 0, 18);
-    }
-    if (auto* sequencePlotLayout = sequencePlot_->layout(); sequencePlotLayout != nullptr)
-    {
-        sequencePlotLayout->setContentsMargins(7, 7, 7, 8);
-    }
 
     auto* trajectoryPlotCard = new QFrame(trajectoryBundleCard);
     trajectoryPlotCard->setObjectName("plotCard");
