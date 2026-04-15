@@ -83,19 +83,23 @@ add_executable(
     ModelingMethodsLab2
     MACOSX_BUNDLE
     main.cpp
+    include/InteractiveChartView.h
     include/Lab2Variant.h
     include/MathWidgets.h
     include/MainWindow.h
     include/PlotChartWidget.h
+    include/PlotChartUtils.h
     include/PresentationBuilders.h
     include/SamplingEngine.h
     include/SamplingTypes.h
     include/TableExport.h
     include/TableModels.h
     include/UiFormatting.h
+    src/InteractiveChartView.cpp
     src/MathWidgets.cpp
     src/MainWindow.cpp
     src/PlotChartWidget.cpp
+    src/PlotChartUtils.cpp
     src/PresentationBuilders.cpp
     src/SamplingEngine.cpp
     src/TableExport.cpp
