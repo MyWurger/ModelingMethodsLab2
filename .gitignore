@@ -1,0 +1,24 @@
+# Build output
+build/
+cmake-build-*/
+
+# Runtime exports
+exports/
+
+# Qt/CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.autogen/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Binaries
+*.app/
+*.dSYM/
