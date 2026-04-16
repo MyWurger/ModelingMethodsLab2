@@ -79,26 +79,48 @@ PlotChartWidget::PlotChartWidget(const QString& title,
     : QFrame(parent), xAxisLabel_(xAxisLabel), yAxisLabel_(yAxisLabel)
 {
     // Наследуемся от QFrame, чтобы виджет можно было оформить как карточку.
+
+    // objectName нужен для адресного применения QSS-стиля именно к этой карточке.
     setObjectName("plotCard");
+
     // Минимальная высота защищает график от слишком сильного сжатия.
     setMinimumHeight(220);
 
     // Корневая вертикальная компоновка карточки:
     // сверху заголовок, ниже либо пустое состояние, либо сам chart view.
+    // Создаем вертикальный layout и сразу привязываем его к this,
+    // чтобы Qt автоматически управлял временем жизни компоновки.
     auto* layout = new QVBoxLayout(this);
+
+    // Внутренние поля карточки.
     layout->setContentsMargins(7, 7, 7, 7);
+
+    // Небольшой вертикальный зазор между заголовком, графиком и легендой.
     layout->setSpacing(4);
 
     // Заголовок конкретного графика.
+
+    // Текст заголовка приходит в конструктор извне.
     titleLabel_ = new QLabel(title, this);
+
+    // objectName нужен для отдельного QSS-оформления заголовка.
     titleLabel_->setObjectName("plotTitle");
 
     // Плашка "нет данных", которая показывается,
     // пока в график еще не переданы серии.
     emptyStateLabel_ = new QLabel("Нет данных для отображения", this);
+
+    // Даем пустому состоянию отдельное имя для CSS-стилизации.
     emptyStateLabel_->setObjectName("plotEmptyState");
+
+    // Текст заглушки должен стоять строго по центру.
     emptyStateLabel_->setAlignment(Qt::AlignCenter);
+
+    // Разрешаем перенос, чтобы длинная фраза не вылезала за узкие карточки.
     emptyStateLabel_->setWordWrap(true);
+
+    // Фиксируем минимальную высоту заглушки,
+    // чтобы пустое состояние занимало примерно столько же места, сколько и график.
     emptyStateLabel_->setMinimumHeight(170);
     // Локальный стиль пустого состояния,
     // чтобы оно выглядело как отдельная мягкая заглушка.
@@ -113,47 +135,82 @@ PlotChartWidget::PlotChartWidget(const QString& title,
         " padding: 24px;"
         "}");
 
+    // Внешняя легенда живет в отдельном виджете,
+    // а не внутри QChart, чтобы не съедать внутреннюю область plotArea.
     legendWidget_ = new QWidget(this);
+
+    // objectName пригодится для адресной стилизации легенды при необходимости.
     legendWidget_->setObjectName("plotLegend");
+
+    // Внутри легенды создаем горизонтальную компоновку.
     legendLayout_ = new QHBoxLayout(legendWidget_);
+
+    // У самой легенды внутренние поля не нужны.
     legendLayout_->setContentsMargins(0, 0, 0, 0);
+
+    // Расстояние между элементами легенды.
     legendLayout_->setSpacing(14);
+
+    // Центруем кнопки легенды относительно ширины карточки.
     legendLayout_->setAlignment(Qt::AlignCenter);
+
+    // До появления серий легенду сразу скрываем.
     legendWidget_->hide();
 
     // Создаем сам объект диаграммы Qt Charts.
+
+    // chart_ создается без parent внутри конструктора,
+    // потому что дальше он будет передан во владение chartView_/Qt Charts.
     chart_ = new QChart();
     // Используем светлую тему без лишних системных эффектов.
     chart_->setTheme(QChart::ChartThemeLight);
     // Фон самого chart делаем белым,
     // чтобы он визуально сливался с карточкой-графиком.
+    // Белая кисть фона нужна, чтобы график не выбивался из общей белой карточки.
     chart_->setBackgroundBrush(QBrush(Qt::white));
     // Убираем округление фона chart, так как скругление дает внешняя карточка.
     chart_->setBackgroundRoundness(0.0);
     // Включаем отдельный фон рабочей области plotArea,
     // чтобы зона графика слегка отличалась от остальной карточки.
     chart_->setPlotAreaBackgroundVisible(true);
+    // Чуть более серый фон plotArea помогает визуально отделить "область графика"
+    // от заголовка и внешних полей карточки.
     chart_->setPlotAreaBackgroundBrush(QColor(248, 248, 250));
     // Анимации отключаем, чтобы pan/zoom и частые обновления были предсказуемыми.
     chart_->setAnimationOptions(QChart::NoAnimation);
     // Легенда по умолчанию скрыта и будет включаться только при необходимости.
+    // Сразу скрываем встроенную легенду Qt Charts,
+    // потому что в проекте используется собственная внешняя легенда.
     chart_->legend()->setVisible(false);
     // Легенда должна располагаться снизу,
     // чтобы не конфликтовать с областями осей и заголовком графика.
     chart_->legend()->setAlignment(Qt::AlignBottom);
+    // Даже скрытая легенда получает базовый цвет подписей,
+    // чтобы при временном включении оставаться стилистически согласованной.
     chart_->legend()->setLabelColor(QColor("#334155"));
     chart_->legend()->setContentsMargins(0.0, 0.0, 0.0, 0.0);
     // Настраиваем шрифт легенды под общий визуальный стиль приложения.
+    // Создаем шрифт встроенной легенды на случай,
+    // если она будет временно использоваться отладочно или в отдельных режимах.
     QFont legendFont("Avenir Next");
+
+    // Размер шрифта легенды.
     legendFont.setPointSize(13);
+
+    // Делаем подписи легенды полужирными.
     legendFont.setWeight(QFont::DemiBold);
+
+    // Применяем шрифт к встроенной легенде chart.
     chart_->legend()->setFont(legendFont);
     // По умолчанию держим компактный нижний резерв.
     // Для отдельных графиков его можно увеличить точечно.
     SetBottomAxisLabelReserve(18, 6);
 
     // Создаем числовые оси по x и y.
+    // Ось X хранит горизонтальный числовой диапазон графика.
     axisX_ = new QValueAxis();
+
+    // Ось Y хранит вертикальный числовой диапазон графика.
     axisY_ = new QValueAxis();
     // Подписи осей рисуются вручную поверх графика,
     // поэтому штатные titleText не используем.
@@ -162,35 +219,70 @@ PlotChartWidget::PlotChartWidget(const QString& title,
     // Настраиваем базовые цвета подписей и сетки.
     // Это общий "скелет" графика еще до того,
     // как в него будут загружены реальные данные.
+    // Цвет подписей горизонтальной оси.
     axisX_->setLabelsColor(QColor("#334155"));
+
+    // Цвет подписей вертикальной оси.
     axisY_->setLabelsColor(QColor("#334155"));
+
+    // Подписи делений по X включены.
     axisX_->setLabelsVisible(true);
+
+    // Подписи делений по Y включены.
     axisY_->setLabelsVisible(true);
+
+    // Основная сетка по X.
     axisX_->setGridLineColor(QColor("#d3dee9"));
+
+    // Основная сетка по Y.
     axisY_->setGridLineColor(QColor("#d3dee9"));
+
+    // Вспомогательная сетка по X.
     axisX_->setMinorGridLineColor(QColor("#e6edf5"));
+
+    // Вспомогательная сетка по Y.
     axisY_->setMinorGridLineColor(QColor("#e6edf5"));
     // Стартовый диапазон до прихода реальных данных.
+    // Базовый стартовый диапазон X до прихода реальных данных.
     axisX_->setRange(0.0, 1.0);
+
+    // Базовый стартовый диапазон Y до прихода реальных данных.
     axisY_->setRange(0.0, 1.0);
 
     // Подключаем оси к chart.
+    // Добавляем горизонтальную ось в chart и привязываем ее к нижней стороне.
     chart_->addAxis(axisX_, Qt::AlignBottom);
+
+    // Добавляем вертикальную ось в chart и привязываем ее к левой стороне.
     chart_->addAxis(axisY_, Qt::AlignLeft);
     // AlignBottom и AlignLeft задают обычное расположение осей Qt,
     // хотя дополнительные оси внутри plotArea мы затем рисуем вручную.
 
     // Эти две служебные серии используются не для пользовательских данных,
     // а для рисования внутренних осей Ox и Oy внутри plotArea.
+    // Служебная серия для внутренней оси Ox.
     axisXSeries_ = new QLineSeries();
+
+    // Служебная серия для внутренней оси Oy.
     axisYSeries_ = new QLineSeries();
     // Для служебных осей настраиваем отдельное перо:
     // чуть темнее сетки и немного толще, чтобы оси читались отчетливо.
+    // Создаем общее перо служебных осей.
     QPen axisPen(QColor("#4b647b"));
+
+    // Толщина линий внутренних осей.
     axisPen.setWidthF(1.35);
+
+    // Применяем перо к оси Ox.
     axisXSeries_->setPen(axisPen);
+
+    // Применяем то же перо к оси Oy.
     axisYSeries_->setPen(axisPen);
+
+    // Добавляем служебную серию Ox в chart.
     chart_->addSeries(axisXSeries_);
+
+    // Добавляем служебную серию Oy в chart.
     chart_->addSeries(axisYSeries_);
     // Привязываем служебные серии к тем же осям,
     // что и остальные графики.
@@ -203,34 +295,52 @@ PlotChartWidget::PlotChartWidget(const QString& title,
 
     // Скрываем маркеры служебных серий из легенды,
     // чтобы пользователь видел только реальные данные.
+    // Проходим по всем legend marker'ам, которые Qt создал для служебной оси Ox.
     for (QLegendMarker* marker : chart_->legend()->markers(axisXSeries_))
     {
+        // Прячем маркер, чтобы в легенде не было технического мусора.
         marker->setVisible(false);
     }
 
+    // То же самое делаем и для служебной оси Oy.
     for (QLegendMarker* marker : chart_->legend()->markers(axisYSeries_))
     {
         marker->setVisible(false);
     }
 
     // Создаем интерактивное представление диаграммы.
+    // chartView_ - основной интерактивный экран, в котором реально живет диаграмма.
     chartView_ = new InteractiveChartView(this, chart_, this);
+
+    // objectName нужен для стилизации самого view.
     chartView_->setObjectName("plotChartView");
     // Антиалиасинг здесь выключен ради более стабильной производительности
     // на больших сериях; служебная ручная отрисовка включает его отдельно.
     chartView_->setRenderHint(QPainter::Antialiasing, false);
+    // Минимальная высота самого графика.
     chartView_->setMinimumHeight(170);
+
+    // Внешнюю рамку chartView отключаем, так как рамка уже есть у карточки целиком.
     chartView_->setFrameShape(QFrame::NoFrame);
     // Убираем лишние внутренние поля вокруг chartView.
     chartView_->setContentsMargins(0, 0, 0, 0);
 
     // Собираем содержимое карточки.
+    // Сначала в layout идет заголовок.
     layout->addWidget(titleLabel_);
+
+    // Затем пустое состояние с коэффициентом растяжения 1.
     layout->addWidget(emptyStateLabel_, 1);
+
+    // Потом сам chartView тоже с коэффициентом растяжения 1.
     layout->addWidget(chartView_, 1);
+
+    // Внизу размещаем внешнюю легенду и центрируем ее по горизонтали.
     layout->addWidget(legendWidget_, 0, Qt::AlignHCenter);
 
     // До загрузки данных показываем пустое состояние, а chart view скрываем.
+    // До прихода серий реальный chartView не нужен пользователю,
+    // поэтому держим его скрытым.
     chartView_->hide();
     // Приводим оси к согласованному стартовому состоянию.
     // Это гарантирует, что даже до первой серии у графика уже есть
@@ -257,14 +367,22 @@ void PlotChartWidget::Clear()
     // ни старых диапазонов, ни старого hover-/zoom-состояния.
 
     // Удаляем все пользовательские серии, которые были созданы в SetSeries().
+    // Идем по всем сохраненным сериям по ссылке,
+    // чтобы очищать их прямо внутри контейнера состояний.
     for (SeriesState& state : seriesStates_)
     {
         if (state.renderedSeries != nullptr)
         {
             // Сначала отцепляем серию от chart,
             // затем освобождаем память вручную.
+
+            // removeSeries убирает серию из структуры Qt Charts.
             chart_->removeSeries(state.renderedSeries);
+
+            // delete освобождает выделенную ранее память под QLineSeries.
             delete state.renderedSeries;
+
+            // И обязательно обнуляем указатель во внутреннем состоянии.
             state.renderedSeries = nullptr;
         }
     }
@@ -272,36 +390,57 @@ void PlotChartWidget::Clear()
     // Очищаем контейнер состояний серий.
     // В нем хранятся не только указатели на линии Qt,
     // но и полные массивы точек, цвета и служебные флаги.
+    // После очистки сам контейнер больше не нужен.
     seriesStates_.clear();
     // После очистки больше нет "главной" серии, к которой можно привязывать координаты.
     anchorSeries_ = nullptr;
     highlightedSeriesIndex_ = -1;
     // Легенда без пользовательских серий не нужна.
+    // Встроенную legend тоже снова скрываем.
     chart_->legend()->setVisible(false);
+
+    // Внешнюю легенду пересобираем в пустое состояние.
     RebuildLegend();
     // Скрываем реальный график и возвращаем плашку пустого состояния.
+    // Сам график скрываем.
     chartView_->hide();
+
+    // А заглушку пустого состояния возвращаем на экран.
     emptyStateLabel_->show();
     // Фиксируем, что сейчас данных для отображения нет.
     hasData_ = false;
 
     // Сбрасываем сохраненный "домашний" диапазон графика.
     // Именно к этому диапазону обычно возвращает ResetView().
+    // Левая граница домашнего диапазона X.
     defaultXMin_ = 0.0;
+
+    // Правая граница домашнего диапазона X.
     defaultXMax_ = 1.0;
+
+    // Нижняя граница домашнего диапазона Y.
     defaultYMin_ = 0.0;
+
+    // Верхняя граница домашнего диапазона Y.
     defaultYMax_ = 1.0;
     // Сбрасываем сохраненный шаг делений осей.
+    // Отрицательное значение здесь используется как маркер "шаг еще не вычислен".
     xTickStep_ = -1.0;
+
+    // То же самое для оси Y.
     yTickStep_ = -1.0;
     // Возвращаем видимым осям базовый диапазон.
+    // Базовый диапазон X.
     axisX_->setRange(0.0, 1.0);
+
+    // Базовый диапазон Y.
     axisY_->setRange(0.0, 1.0);
     // Очищаем служебные линии внутренних осей.
     // Они живут отдельно от пользовательских серий,
     // поэтому их нужно сбрасывать явно.
     if (axisXSeries_ != nullptr)
     {
+        // clear() удаляет все точки линии, но не уничтожает сам объект серии.
         axisXSeries_->clear();
     }
     if (axisYSeries_ != nullptr)
@@ -332,6 +471,7 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
 
     // Сначала убираем все ранее показанные серии и возвращаем виджет
     // в чистое состояние перед загрузкой новых данных.
+    // Начинаем всегда с полного сброса старого состояния.
     Clear();
 
     // Если новый набор серий пуст, после очистки больше делать нечего.
@@ -341,9 +481,16 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     }
 
     // Эти переменные будут хранить общий диапазон всех точек всех серий.
+    // Текущий минимум по X.
     double xMin = 0.0;
+
+    // Текущий максимум по X.
     double xMax = 0.0;
+
+    // Текущий минимум по Y.
     double yMin = 0.0;
+
+    // Текущий максимум по Y.
     double yMax = 0.0;
     // hasPoints показывает, встретилась ли хотя бы одна реальная точка.
     // Без этого флага нельзя безопасно инициализировать общий диапазон.
@@ -351,6 +498,8 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
 
     // Последовательно преобразуем входные данные PlotSeriesData
     // во внутренние состояния SeriesState и реальные QLineSeries.
+    // Обходим все входные описания серий по константной ссылке,
+    // чтобы не копировать большие массивы точек.
     for (const PlotSeriesData& seriesData : series)
     {
         // Каждая запись PlotSeriesData содержит "сырой" набор данных серии:
@@ -367,36 +516,70 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
         // которое потом будет использоваться и для отрисовки, и для hover.
         // Здесь мы сохраняем как полные точки, так и информацию
         // о стиле будущей линии.
+        // Создаем локальное внутреннее состояние будущей серии.
         SeriesState state;
+
+        // Имя серии пойдет и в легенду, и в hover-tooltip.
         state.name = seriesData.name;
+
+        // Полный массив точек серии сохраняем отдельно от Qt-серии,
+        // чтобы later использовать его для hover, downsampling и пересборки.
         state.fullPoints = seriesData.points;
+
+        // Цвет серии.
         state.color = seriesData.color;
+
+        // Толщина линии серии.
         state.width = seriesData.width;
+
+        // Стиль линии серии: сплошная, пунктирная и т.д.
         state.penStyle = seriesData.penStyle;
+
+        // Режим hover-интерполяции.
         state.hoverMode = seriesData.hoverMode;
         // Сохраняем, упорядочена ли серия по x,
         // чтобы дальше можно было оптимизировать отрисовку и interpolation.
         state.monotonicByX = IsMonotonicByX(seriesData.points);
         // Создаем фактический объект серии Qt Charts.
+        // Создаем реальный объект линии Qt Charts.
         state.renderedSeries = new QLineSeries();
+
+        // Передаем ему имя серии.
         state.renderedSeries->setName(state.name);
+
+        // Индекс серии фиксируем заранее,
+        // чтобы использовать его в лямбде обработчика клика.
         const int seriesIndex = static_cast<int>(seriesStates_.size());
+
+        // Клик по линии будет переводить график в режим выделения соответствующей серии.
         connect(state.renderedSeries, &QXYSeries::clicked, this, [this, seriesIndex](const QPointF&) {
             SetHighlightedSeries(seriesIndex);
         });
 
         // Настраиваем перо серии по цвету, толщине и стилю линии.
         // Это уже чисто визуальные свойства отображения.
+        // Базовое перо инициализируем цветом серии.
         QPen pen(state.color);
+
+        // Толщина линии.
         pen.setWidthF(state.width);
+
+        // Тип штриха линии.
         pen.setStyle(state.penStyle);
+
+        // Применяем перо к серии.
         state.renderedSeries->setPen(pen);
 
         // Добавляем серию в chart и привязываем к общим осям.
         // Без attachAxis линия не была бы встроена
         // в нужную координатную систему графика.
+        // Добавляем серию в chart.
         chart_->addSeries(state.renderedSeries);
+
+        // Привязываем серию к оси X.
         state.renderedSeries->attachAxis(axisX_);
+
+        // Привязываем серию к оси Y.
         state.renderedSeries->attachAxis(axisY_);
 
         // Первая добавленная серия становится anchorSeries_.
@@ -404,16 +587,19 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
         // Именно на нее затем опираются hover, zoom и ручные служебные линии.
         if (anchorSeries_ == nullptr)
         {
+            // Первая реальная пользовательская серия становится опорной.
             anchorSeries_ = state.renderedSeries;
         }
 
         // По всем точкам серии обновляем общий диапазон x/y.
         // Потом именно по нему будет рассчитано стартовое окно графика.
+        // Дальше обновляем глобальный диапазон по всем точкам этой серии.
         for (const QPointF& point : state.fullPoints)
         {
             // Первая встреченная точка инициализирует диапазон.
             if (!hasPoints)
             {
+                // Первой точкой одновременно инициализируем и минимум, и максимум.
                 xMin = xMax = point.x();
                 yMin = yMax = point.y();
                 hasPoints = true;
@@ -429,6 +615,7 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
         }
 
         // Сохраняем заполненное состояние серии во внутренний контейнер.
+        // После полной настройки добавляем состояние серии в общий контейнер.
         seriesStates_.append(state);
     }
 
@@ -444,12 +631,20 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
 
     // Встроенную легенду QChart не используем: она резервирует слишком большую
     // нижнюю полосу внутри сцены. Вместо нее собираем компактную внешнюю легенду.
+    // Встроенную легенду оставляем выключенной.
     chart_->legend()->setVisible(false);
+
+    // Перестраиваем внешнюю легенду под новый набор серий.
     RebuildLegend();
+
+    // Применяем текущий режим выделения серий к только что загруженным линиям.
     ApplySeriesHighlight();
 
     // Считаем размеры диапазона по обеим осям.
+    // Полный размах диапазона по X.
     double xSpan = xMax - xMin;
+
+    // Полный размах диапазона по Y.
     double ySpan = yMax - yMin;
 
     // Если все x совпали или диапазон некорректен,
@@ -458,6 +653,8 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     {
         // pad выбираем не нулевым, чтобы вокруг значения появилась
         // хотя бы небольшая видимая область.
+        // pad выбираем либо как единицу, либо как 5% от масштаба значения,
+        // чтобы резерв не стал нулевым даже возле начала координат.
         const double pad = std::max(1.0, std::fabs(xMin) * 0.05);
         xMin -= pad;
         xMax += pad;
@@ -469,6 +666,7 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     {
         // Эта защита особенно важна для почти горизонтальных линий,
         // у которых все y одинаковы.
+        // Аналогичный защитный резерв по Y.
         const double pad = std::max(1.0, std::fabs(yMin) * 0.05);
         yMin -= pad;
         yMax += pad;
@@ -479,7 +677,10 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     // чтобы линии не прилипали к рамке plotArea.
     // По y отступ чуть больше, потому что сверху и снизу чаще находятся
     // подписи, маркеры и служебные линии.
+    // 10% запаса по X.
     const double xPad = std::max(1e-9, xSpan * 0.10);
+
+    // 12% запаса по Y, чуть больше из-за подписей и hover-маркеров.
     const double yPad = std::max(1e-9, ySpan * 0.12);
 
     // Сохраняем "домашний" диапазон, к которому будет возвращаться ResetView().
@@ -489,19 +690,33 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     defaultYMin_ = yMin - yPad;
     defaultYMax_ = yMax + yPad;
 
+    // Текущий полный домашний размах по X.
     const double defaultXSpan = defaultXMax_ - defaultXMin_;
+
+    // Текущий полный домашний размах по Y.
     const double defaultYSpan = defaultYMax_ - defaultYMin_;
+
+    // scaledXSpan - уже с учетом пользовательского коэффициента домашнего приближения.
     const double scaledXSpan = std::max(1.0e-12, defaultXSpan * homeViewXScale_);
+
+    // scaledYSpan - то же самое для вертикального направления.
     const double scaledYSpan = std::max(1.0e-12, defaultYSpan * homeViewYScale_);
+
+    // Центр диапазона по Y нужен, чтобы затем симметрично сузить окно по вертикали.
     const double yCenter = (defaultYMin_ + defaultYMax_) * 0.5;
 
     if (homeViewStartAtZero_ && defaultXMin_ <= 0.0 && defaultXMax_ >= 0.0)
     {
+        // Если домашнее окно должно начинаться от нуля,
+        // а 0 действительно лежит в диапазоне, фиксируем левую границу в 0.
         defaultXMin_ = 0.0;
+
+        // Правую границу ограничиваем и желаемым span, и реальным правым краем данных.
         defaultXMax_ = std::min(defaultXMin_ + scaledXSpan, xMax + xPad);
     }
     else
     {
+        // Иначе строим обычное симметричное окно относительно центра диапазона.
         const double xCenter = (defaultXMin_ + defaultXMax_) * 0.5;
         defaultXMin_ = xCenter - scaledXSpan * 0.5;
         defaultXMax_ = xCenter + scaledXSpan * 0.5;
@@ -511,6 +726,7 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     defaultYMax_ = yCenter + scaledYSpan * 0.5;
 
     // Отмечаем, что график теперь содержит валидные данные.
+    // Фиксируем, что график теперь заполнен данными.
     hasData_ = true;
     // Сбрасываем кеш шагов делений,
     // чтобы оси заново подстроились под новый диапазон.
@@ -520,62 +736,157 @@ void PlotChartWidget::SetSeries(const QVector<PlotSeriesData>& series)
     yTickStep_ = -1.0;
     // Применяем рассчитанный диапазон и одновременно
     // запускаем обновление осей и отображаемых точек.
+    // Одним вызовом применяем стартовый диапазон и запускаем полную синхронизацию осей.
     ApplyAxisRange(defaultXMin_, defaultXMax_, defaultYMin_, defaultYMax_);
 
     // После загрузки данных убираем заглушку
     // и показываем реальный график.
+    // Пустое состояние больше не нужно.
     emptyStateLabel_->hide();
+
+    // Показываем настоящий график.
     chartView_->show();
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetHomeViewScale - НАСТРОЙКА ДОМАШНЕГО МАСШТАБА
+// ----------------------------------------------------------------------------
+// Сохраняет коэффициенты стартового приближения по осям X и Y.
+// Эти коэффициенты затем используются в SetSeries() при вычислении
+// "домашнего" окна, к которому возвращается ResetView().
+//
+// Принимает:
+// - xScale: коэффициент стартового масштаба по оси X;
+// - yScale: коэффициент стартового масштаба по оси Y.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetHomeViewScale(double xScale, double yScale)
 {
+    // Ограничиваем коэффициент X разумным диапазоном,
+    // чтобы нельзя было задать почти нулевой или экстремально огромный масштаб.
     homeViewXScale_ = std::clamp(xScale, 0.05, 10.0);
+
+    // То же самое ограничение применяем и к вертикальному коэффициенту.
     homeViewYScale_ = std::clamp(yScale, 0.05, 10.0);
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetAutoFitYToVisibleX - ВКЛЮЧЕНИЕ АВТОПОДГОНА Y
+// ----------------------------------------------------------------------------
+// Управляет режимом, в котором вертикальный диапазон автоматически
+// перестраивается под текущий видимый интервал по оси X.
+//
+// Принимает:
+// - enabled: true, если автоподгон по Y нужно включить.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetAutoFitYToVisibleX(bool enabled)
 {
+    // Просто сохраняем флаг режима;
+    // реальный пересчет диапазона выполняется уже в ApplyAxisRange().
     autoFitYToVisibleX_ = enabled;
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetHomeViewStartAtZero - ФИКСАЦИЯ СТАРТА ОТ НУЛЯ ПО X
+// ----------------------------------------------------------------------------
+// Включает или выключает режим, при котором домашнее окно
+// старается начинаться от x = 0, если ноль попадает в диапазон данных.
+//
+// Принимает:
+// - enabled: true, если домашнее окно должно стартовать от нуля.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetHomeViewStartAtZero(bool enabled)
 {
+    // Запоминаем пользовательское правило для расчета defaultXMin_/defaultXMax_.
     homeViewStartAtZero_ = enabled;
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetLegendVisible - УПРАВЛЕНИЕ ВНЕШНЕЙ ЛЕГЕНДОЙ
+// ----------------------------------------------------------------------------
+// Включает или выключает отображение компактной внешней легенды.
+//
+// Принимает:
+// - enabled: true, если легенда должна быть видимой.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetLegendVisible(bool enabled)
 {
+    // Сохраняем новый глобальный режим отображения легенды.
     legendVisible_ = enabled;
 
     if (!legendVisible_ && legendWidget_ != nullptr)
     {
+        // Если легенда явно выключена, просто прячем контейнер легенды.
         legendWidget_->hide();
+
+        // После скрытия больше ничего перестраивать не нужно.
         return;
     }
 
+    // В остальных случаях пересобираем легенду,
+    // чтобы она согласовалась с текущим набором серий и режимом выделения.
     RebuildLegend();
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetTitleAlignment - ВЫРАВНИВАНИЕ ЗАГОЛОВКА КАРТОЧКИ
+// ----------------------------------------------------------------------------
+// Задает выравнивание заголовка графика внутри карточки.
+//
+// Принимает:
+// - alignment: Qt-флаги выравнивания текста.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetTitleAlignment(Qt::Alignment alignment)
 {
     if (titleLabel_ != nullptr)
     {
+        // Применяем новое выравнивание к QLabel заголовка.
         titleLabel_->setAlignment(alignment);
     }
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetBottomAxisLabelReserve - НАСТРОЙКА НИЖНЕГО РЕЗЕРВА
+// ----------------------------------------------------------------------------
+// Позволяет вручную управлять запасом места снизу у QChart и его layout,
+// чтобы подписи горизонтальной оси не резались и не конфликтовали с легендой.
+//
+// Принимает:
+// - chartMarginBottom: нижний margin самого QChart;
+// - layoutMarginBottom: нижний margin внутреннего layout объекта QChart.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetBottomAxisLabelReserve(int chartMarginBottom, int layoutMarginBottom)
 {
     if (chart_ == nullptr)
     {
+        // Если диаграмма еще не создана, настраивать нижний резерв некуда.
         return;
     }
 
+    // Устанавливаем внешние margins объекта QChart.
+    // std::max не дает передать отрицательный нижний резерв.
     chart_->setMargins(QMargins(2, 0, 2, std::max(0, chartMarginBottom)));
 
     if (chart_->layout() != nullptr)
     {
+        // Дополнительно настраиваем внутренние отступы layout самой диаграммы.
         chart_->layout()->setContentsMargins(0, 0, 0, std::max(0, layoutMarginBottom));
     }
 }
@@ -635,17 +946,27 @@ void PlotChartWidget::ApplyAxisRange(double xMin, double xMax, double yMin, doub
     // возвращаемся к безопасному запасному интервалу.
     if (!(xMax > xMin) || !std::isfinite(xMin) || !std::isfinite(xMax))
     {
+        // Безопасная резервная левая граница.
         xMin = 0.0;
+
+        // Безопасная резервная правая граница.
         xMax = 1.0;
     }
 
     if (autoFitYToVisibleX_ && !seriesStates_.isEmpty())
     {
+        // hasVisibleY показывает, удалось ли найти хотя бы одно валидное значение Y
+        // внутри текущего видимого интервала по X.
         bool hasVisibleY = false;
+
+        // Минимум по Y только для текущего видимого X-окна.
         double visibleYMin = 0.0;
+
+        // Максимум по Y только для текущего видимого X-окна.
         double visibleYMax = 0.0;
 
         auto accumulateY = [&](double value) {
+            // NaN/inf ломают диапазон, поэтому сразу игнорируем их.
             if (!std::isfinite(value))
             {
                 return;
@@ -653,46 +974,64 @@ void PlotChartWidget::ApplyAxisRange(double xMin, double xMax, double yMin, doub
 
             if (!hasVisibleY)
             {
+                // Первое встретившееся корректное значение одновременно
+                // инициализирует и минимум, и максимум локального диапазона.
                 visibleYMin = value;
                 visibleYMax = value;
                 hasVisibleY = true;
                 return;
             }
 
+            // Все последующие значения только расширяют накопленный локальный диапазон.
             visibleYMin = std::min(visibleYMin, value);
             visibleYMax = std::max(visibleYMax, value);
         };
 
+        // Теперь проходим по всем сериям и ищем Y-значения,
+        // которые реально попадают в видимое X-окно.
         for (const SeriesState& state : seriesStates_)
         {
+            // Берем интерполированное значение на левой границе окна.
+            // Это важно, чтобы не терять линию в случае, когда серия пересекает
+            // границу окна между двумя соседними точками.
             const std::optional<double> leftValue =
                 InterpolateSeriesValueAtX(state.fullPoints, state.monotonicByX, state.hoverMode, xMin);
             if (leftValue.has_value())
             {
+                // Если значение на левой границе удалось восстановить,
+                // учитываем его в локальном диапазоне Y.
                 accumulateY(*leftValue);
             }
 
+            // Аналогично восстанавливаем значение на правой границе окна.
             const std::optional<double> rightValue =
                 InterpolateSeriesValueAtX(state.fullPoints, state.monotonicByX, state.hoverMode, xMax);
             if (rightValue.has_value())
             {
+                // И правую границу тоже включаем в расчет локального Y-диапазона.
                 accumulateY(*rightValue);
             }
 
+            // После граничных значений обходим и сами реальные точки серии.
             for (const QPointF& point : state.fullPoints)
             {
                 if (point.x() < xMin)
                 {
+                    // Все точки левее окна по X для локального Y-диапазона бесполезны.
                     continue;
                 }
 
                 if (point.x() > xMax && state.monotonicByX)
                 {
+                    // Для монотонной серии можно безопасно завершить цикл раньше:
+                    // если текущая точка уже ушла правее окна,
+                    // все следующие точки уйдут туда же.
                     break;
                 }
 
                 if (point.x() <= xMax)
                 {
+                    // Все точки, попавшие в окно по X, участвуют в локальном диапазоне по Y.
                     accumulateY(point.y());
                 }
             }
@@ -700,11 +1039,21 @@ void PlotChartWidget::ApplyAxisRange(double xMin, double xMax, double yMin, doub
 
         if (hasVisibleY)
         {
+            // Реальный вертикальный размах именно той части графика,
+            // которая сейчас видна пользователю по X.
             const double visibleYSpan = visibleYMax - visibleYMin;
+
+            // Добавляем небольшой вертикальный запас.
+            // Если размах нормальный, берем 4% от него.
+            // Если размах почти нулевой, используем защитный запас от масштаба значения.
             const double yPad = (visibleYSpan > 0.0 && std::isfinite(visibleYSpan))
                                     ? std::max(1e-9, visibleYSpan * 0.04)
                                     : std::max(1.0, std::fabs(visibleYMin) * 0.05);
+
+            // Нижняя граница видимого Y-окна.
             yMin = visibleYMin - yPad;
+
+            // Верхняя граница видимого Y-окна.
             yMax = visibleYMax + yPad;
         }
     }
@@ -712,7 +1061,10 @@ void PlotChartWidget::ApplyAxisRange(double xMin, double xMax, double yMin, doub
     // Аналогичная защита для диапазона по y.
     if (!(yMax > yMin) || !std::isfinite(yMin) || !std::isfinite(yMax))
     {
+        // Запасной минимум по Y.
         yMin = 0.0;
+
+        // Запасной максимум по Y.
         yMax = 1.0;
     }
 
@@ -804,121 +1156,241 @@ void PlotChartWidget::RebuildLegend()
 {
     if (legendWidget_ == nullptr || legendLayout_ == nullptr)
     {
+        // Если контейнер легенды или его layout еще не созданы,
+        // перестраивать легенду невозможно.
         return;
     }
 
+    // Сначала полностью очищаем прошлое содержимое легенды,
+    // чтобы пересобрать ее строго из текущих состояний серий.
     while (QLayoutItem* item = legendLayout_->takeAt(0))
     {
         if (QWidget* widget = item->widget())
         {
+            // Виджеты элементов легенды удаляем отложенно через deleteLater(),
+            // чтобы не конфликтовать с текущим проходом цикла событий Qt.
             widget->deleteLater();
         }
+
+        // Сам объект layout item можно удалить сразу.
         delete item;
     }
 
     if (!legendVisible_ || seriesStates_.size() <= 1)
     {
+        // Легенда не нужна, если:
+        // 1) пользователь ее отключил;
+        // 2) серий недостаточно для сравнения.
         legendWidget_->hide();
         return;
     }
 
     for (qsizetype index = 0; index < seriesStates_.size(); ++index)
     {
+        // Берем текущее состояние серии по константной ссылке.
         const SeriesState& state = seriesStates_[index];
+
+        // selected = эта серия сейчас активна в режиме выделения.
         const bool selected = highlightedSeriesIndex_ == static_cast<int>(index);
+
+        // dimmed = серия должна быть притушена, потому что выделена другая.
         const bool dimmed = highlightedSeriesIndex_ >= 0 && !selected;
 
+        // Создаем кнопку легенды в формате "■ Имя серии".
         auto* button = new QPushButton(QString("■ %1").arg(state.name), legendWidget_);
+
+        // Кнопка работает как переключатель выделения.
         button->setCheckable(true);
+
+        // Состояние checked отражает текущий режим выделения.
         button->setChecked(selected);
+
+        // Курсор-рука явно показывает, что это интерактивный элемент.
         button->setCursor(Qt::PointingHandCursor);
+
+        // Подсказка меняется в зависимости от текущего состояния серии.
         button->setToolTip(selected ? "Сбросить выделение серии" : "Выделить эту серию");
 
+        // Исходный цвет текста совпадает с цветом серии на графике.
         QColor textColor = state.color;
         if (dimmed)
         {
+            // Для невыделенных серий в режиме фокуса делаем подпись полупрозрачной.
             textColor.setAlpha(115);
         }
 
+        // QSS собираем динамически,
+        // потому что цвет, жирность и фон зависят от состояния конкретной серии.
+        // Здесь шаблон стиля один и тот же для всех кнопок легенды,
+        // а конкретные значения подставляются через %1..%4.
+        //
+        // Соответствие placeholder-ов такое:
+        // - %1 -> фон кнопки;
+        // - %2 -> цвет текста;
+        // - %3 -> цвет рамки;
+        // - %4 -> числовая жирность шрифта.
         button->setStyleSheet(QString(
                                   "QPushButton {"
+                                  // background определяет, будет ли кнопка визуально выделена.
                                   " background: %1;"
+                                  // color задает цвет текста и квадратика-маркера "■".
                                   " color: %2;"
+                                  // border нужен, чтобы выбранная серия читалась как активная плашка.
                                   " border: 1px solid %3;"
+                                  // Скругление вписывает кнопку в общий мягкий стиль интерфейса.
                                   " border-radius: 8px;"
+                                  // Небольшие внутренние отступы не дают тексту прилипать к краям.
                                   " padding: 2px 8px;"
+                                  // Семейство шрифта приводим к общему стилю приложения.
                                   " font-family: 'Avenir Next';"
+                                  // Размер шрифта легенды.
                                   " font-size: 13px;"
+                                  // Жирность тоже зависит от состояния: выбранный элемент чуть тяжелее.
                                   " font-weight: %4;"
                                   "}"
                                   "QPushButton:hover {"
+                                  // При наведении слегка подсвечиваем фон.
                                   " background: #edf5ff;"
+                                  // И усиливаем рамку hover-цветом.
                                   " border-color: #9fbbe2;"
                                   "}")
+                                  // %1: выделенная серия получает светлый фон,
+                                  // невыделенная остается прозрачной.
                                   .arg(selected ? "#edf5ff" : "transparent",
+                                       // %2: текст красим в цвет серии, возможно уже ослабленный alpha-каналом.
                                        textColor.name(QColor::HexArgb),
+                                       // %3: рамку показываем только у выбранной серии.
                                        selected ? "#9fbbe2" : "transparent",
+                                       // %4: выбранную серию делаем чуть жирнее.
                                        selected ? "700" : "600"));
 
+        // Клик по элементу легенды делегируем в тот же механизм выделения,
+        // что и клик по линии на графике.
         connect(button, &QPushButton::clicked, this, [this, index]() {
+            // Просто переключаем активную серию по ее индексу.
             SetHighlightedSeries(static_cast<int>(index));
         });
 
+        // Добавляем кнопку в горизонтальную компоновку легенды.
+        // Второй аргумент 0 означает, что мы не задаем stretch-фактор,
+        // а `Qt::AlignVCenter` выравнивает кнопку по вертикальному центру строки легенды.
         legendLayout_->addWidget(button, 0, Qt::AlignVCenter);
     }
 
+    // После полной сборки делаем легенду видимой.
     legendWidget_->show();
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД SetHighlightedSeries - ПЕРЕКЛЮЧЕНИЕ ВЫДЕЛЕНИЯ СЕРИИ
+// ----------------------------------------------------------------------------
+// Управляет индексом активной серии: выбирает новую серию,
+// снимает выделение с текущей или сбрасывает его при невалидном индексе.
+//
+// Принимает:
+// - seriesIndex: индекс серии, которую нужно выделить.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::SetHighlightedSeries(int seriesIndex)
 {
     if (seriesIndex < 0 || seriesIndex >= seriesStates_.size())
     {
+        // Невалидный индекс трактуем как команду полного сброса выделения.
         highlightedSeriesIndex_ = -1;
     }
     else if (highlightedSeriesIndex_ == seriesIndex)
     {
+        // Повторный выбор уже активной серии выключает выделение.
         highlightedSeriesIndex_ = -1;
     }
     else
     {
+        // Во всех остальных случаях просто запоминаем новый активный индекс.
         highlightedSeriesIndex_ = seriesIndex;
     }
 
+    // Перекрашиваем / переутолщаем линии с учетом нового состояния.
+    // Вся логика визуального фокуса вынесена отдельно,
+    // чтобы не дублировать ее между легендой и кликами по линиям.
     ApplySeriesHighlight();
+
+    // И затем пересобираем внешнюю легенду, чтобы обновились кнопки и их стиль.
+    // Это нужно, потому что кнопки legendWidget_ не "знают" автоматически,
+    // что значение highlightedSeriesIndex_ изменилось.
     RebuildLegend();
 }
 
+// ----------------------------------------------------------------------------
+// МЕТОД ApplySeriesHighlight - ПРИМЕНЕНИЕ СТИЛЯ ВЫДЕЛЕНИЯ
+// ----------------------------------------------------------------------------
+// Обновляет перья всех пользовательских серий в зависимости от того,
+// есть ли сейчас выделенная серия и какая именно.
+//
+// Принимает:
+// - ничего.
+//
+// Возвращает:
+// - ничего.
+// ----------------------------------------------------------------------------
 void PlotChartWidget::ApplySeriesHighlight()
 {
     for (qsizetype index = 0; index < seriesStates_.size(); ++index)
     {
+        // Работаем по ссылке, чтобы менять состояние серии прямо в контейнере.
         SeriesState& state = seriesStates_[index];
         if (state.renderedSeries == nullptr)
         {
+            // Если визуальной серии Qt нет, применять стиль просто не к чему.
             continue;
         }
 
+        // На старте берем исходный цвет серии.
         QColor color = state.color;
+
+        // И исходную толщину линии.
         qreal width = state.width;
 
         if (highlightedSeriesIndex_ >= 0)
         {
+            // Если вообще есть активная серия, значит график находится
+            // в режиме фокусировки, где одна линия подчеркивается,
+            // а остальные намеренно приглушаются.
             if (highlightedSeriesIndex_ == index)
             {
+                // Активную серию делаем немного толще,
+                // чтобы она сразу выделялась на фоне остальных.
                 width += 1.4;
             }
             else
             {
+                // Неактивные серии в режиме выделения приглушаем нейтральным серо-синим цветом.
                 color = QColor("#b7c4d2");
+
+                // Дополнительно понижаем непрозрачность.
                 color.setAlpha(135);
+
+                // И уменьшаем толщину линии, но не даем ей стать совсем тонкой.
                 width = std::max<qreal>(0.8, width * 0.55);
             }
         }
+        else
+        {
+            // Если активной серии нет, оставляем линию в ее исходном виде:
+            // цвет и толщина остаются такими, какими пришли из данных.
+        }
 
+        // Собираем итоговое перо серии из вычисленных параметров.
         QPen pen(color);
+
+        // Применяем итоговую толщину.
         pen.setWidthF(width);
+
+        // Сохраняем исходный тип штриха серии.
         pen.setStyle(state.penStyle);
+
+        // Передаем обновленное перо в реальную Qt-серию.
         state.renderedSeries->setPen(pen);
     }
 }
@@ -948,9 +1420,16 @@ void PlotChartWidget::UpdateAxisSeries()
     axisYSeries_->clear();
 
     // Считываем текущий видимый диапазон.
+    // Левая граница текущего окна по X.
     const double xMin = axisX_->min();
+
+    // Правая граница текущего окна по X.
     const double xMax = axisX_->max();
+
+    // Нижняя граница текущего окна по Y.
     const double yMin = axisY_->min();
+
+    // Верхняя граница текущего окна по Y.
     const double yMax = axisY_->max();
 
     // Горизонтальную ось Ox рисуем только если y = 0
@@ -961,7 +1440,10 @@ void PlotChartWidget::UpdateAxisSeries()
     {
         // Для оси Ox достаточно двух точек:
         // левой и правой границы видимого окна при y = 0.
+        // Левая точка горизонтальной оси.
         axisXSeries_->append(xMin, 0.0);
+
+        // Правая точка горизонтальной оси.
         axisXSeries_->append(xMax, 0.0);
     }
 
@@ -972,7 +1454,10 @@ void PlotChartWidget::UpdateAxisSeries()
     if (xMin <= 0.0 && xMax >= 0.0)
     {
         // Для оси Oy строим отрезок от нижней до верхней границы окна.
+        // Нижняя точка вертикальной оси.
         axisYSeries_->append(0.0, yMin);
+
+        // Верхняя точка вертикальной оси.
         axisYSeries_->append(0.0, yMax);
     }
 }
@@ -991,7 +1476,10 @@ void PlotChartWidget::RefreshSeries()
 {
     // Текущая видимая область по x нужна,
     // чтобы BuildRenderedPoints мог отфильтровать лишние точки.
+    // Левая граница видимого окна по X.
     const double visibleXMin = axisX_->min();
+
+    // Правая граница видимого окна по X.
     const double visibleXMax = axisX_->max();
 
     // Обновляем каждую пользовательскую серию отдельно.
@@ -1008,6 +1496,12 @@ void PlotChartWidget::RefreshSeries()
         // на пересчитанную видимую/прореженную версию.
         // Благодаря этому на экран попадает не весь массив fullPoints,
         // а только тот его фрагмент, который реально нужен в текущем масштабе.
+        // replace() атомарно подменяет точки внутри QLineSeries,
+        // не заставляя нас вручную делать clear()+append().
+        // BuildRenderedPoints внутри:
+        // - при необходимости вырезает только видимую часть;
+        // - при необходимости прореживает точки;
+        // - сохраняет достаточную форму графика для текущего масштаба.
         state.renderedSeries->replace(
             BuildRenderedPoints(state.fullPoints, state.monotonicByX, visibleXMin, visibleXMax));
     }
@@ -1043,11 +1537,22 @@ void PlotChartWidget::PanByPixels(const QPointF& pixelDelta)
     }
 
     // Текущий видимый диапазон осей.
+    // Текущее левое значение оси X.
     const double currentXMin = axisX_->min();
+
+    // Текущее правое значение оси X.
     const double currentXMax = axisX_->max();
+
+    // Текущее нижнее значение оси Y.
     const double currentYMin = axisY_->min();
+
+    // Текущее верхнее значение оси Y.
     const double currentYMax = axisY_->max();
+
+    // Текущая ширина окна по X.
     const double currentXSpan = currentXMax - currentXMin;
+
+    // Текущая высота окна по Y.
     const double currentYSpan = currentYMax - currentYMin;
 
     // Если диапазон вырожден, pan выполнять нельзя.
@@ -1065,9 +1570,14 @@ void PlotChartWidget::PanByPixels(const QPointF& pixelDelta)
     //
     // Знак по x инвертируется, потому что визуальное движение содержимого
     // и изменение числового диапазона происходят в противоположных направлениях.
+    // dx - смещение диапазона по X в координатах данных.
     const double dx = -(pixelDelta.x() / plotArea.width()) * currentXSpan;
+
+    // dy - смещение диапазона по Y в координатах данных.
     const double dy = (pixelDelta.y() / plotArea.height()) * currentYSpan;
     // Применяем сдвиг к обеим осям.
+    // Новый диапазон по X получается простым переносом текущего окна на dx,
+    // а по Y - переносом на dy.
     ApplyAxisRange(currentXMin + dx, currentXMax + dx, currentYMin + dy, currentYMax + dy);
 }
 
@@ -1099,8 +1609,14 @@ void PlotChartWidget::ZoomAt(const QPointF& viewportPos, double factor)
     }
 
     // Переводим точку viewport в систему координат chart.
+    // mapToScene() переводит координаты из локального viewport chartView
+    // в координаты графической сцены Qt.
     const QPointF scenePos = chartView_->mapToScene(viewportPos.toPoint());
+
+    // mapFromScene() затем переводит точку сцены в локальные координаты самого chart.
     const QPointF chartPos = chart_->mapFromScene(scenePos);
+
+    // plotArea - реальная прямоугольная область данных без полей и служебных резервов.
     const QRectF plotArea = chart_->plotArea();
     // Zoom работает только если курсор действительно находится над plotArea.
     if (!plotArea.contains(chartPos))
@@ -1109,13 +1625,25 @@ void PlotChartWidget::ZoomAt(const QPointF& viewportPos, double factor)
     }
 
     // anchor - точка данных, относительно которой будет выполняться масштабирование.
+    // Именно эта точка должна визуально остаться под курсором после zoom.
     const QPointF anchor = chart_->mapToValue(chartPos, anchorSeries_);
     // Текущий диапазон осей и его размеры.
+    // Левая граница текущего окна по X.
     const double currentXMin = axisX_->min();
+
+    // Правая граница текущего окна по X.
     const double currentXMax = axisX_->max();
+
+    // Нижняя граница текущего окна по Y.
     const double currentYMin = axisY_->min();
+
+    // Верхняя граница текущего окна по Y.
     const double currentYMax = axisY_->max();
+
+    // Текущая ширина окна по X.
     const double currentXSpan = currentXMax - currentXMin;
+
+    // Текущая высота окна по Y.
     const double currentYSpan = currentYMax - currentYMin;
 
     // Вырожденный диапазон масштабировать нельзя.
@@ -1129,11 +1657,22 @@ void PlotChartWidget::ZoomAt(const QPointF& viewportPos, double factor)
     // Это защита от двух крайностей:
     // - нельзя приблизить график настолько, чтобы диапазон почти исчез;
     // - нельзя отдалить его до практически бесконечного масштаба.
+    // Базовый домашний размах по X.
     const double baseXSpan = std::max(1e-12, std::fabs(defaultXMax_ - defaultXMin_));
+
+    // Базовый домашний размах по Y.
     const double baseYSpan = std::max(1e-12, std::fabs(defaultYMax_ - defaultYMin_));
+
+    // Минимально допустимый zoom-in по X.
     const double minXSpan = baseXSpan * 1e-6;
+
+    // Минимально допустимый zoom-in по Y.
     const double minYSpan = baseYSpan * 1e-6;
+
+    // Максимально допустимый zoom-out по X.
     const double maxXSpan = baseXSpan * 1000.0;
+
+    // Максимально допустимый zoom-out по Y.
     const double maxYSpan = baseYSpan * 1000.0;
 
     // Новый размер окна после zoom,
@@ -1154,10 +1693,16 @@ void PlotChartWidget::ZoomAt(const QPointF& viewportPos, double factor)
     // 0 означает левую/нижнюю границу, 1 - правую/верхнюю.
     // Например, xRatio = 0.25 означает, что anchor находится
     // на четверти ширины окна от его левого края.
+    // Относительная горизонтальная позиция anchor внутри текущего окна.
     const double xRatio = (anchor.x() - currentXMin) / currentXSpan;
+
+    // Относительная вертикальная позиция anchor внутри текущего окна.
     const double yRatio = (anchor.y() - currentYMin) / currentYSpan;
     // На всякий случай ограничиваем их диапазоном [0; 1].
+    // Защищенный коэффициент для X.
     const double clampedXRatio = std::clamp(xRatio, 0.0, 1.0);
+
+    // Защищенный коэффициент для Y.
     const double clampedYRatio = std::clamp(yRatio, 0.0, 1.0);
 
     // Подбираем новый диапазон так,
@@ -1166,9 +1711,16 @@ void PlotChartWidget::ZoomAt(const QPointF& viewportPos, double factor)
     // - откладываем от anchor влево новую ширину, умноженную на долю clampedXRatio;
     // - затем восстанавливаем правую границу как newXMin + newXSpan;
     // - аналогично поступаем по оси y.
+    // Новая левая граница окна по X.
     const double newXMin = anchor.x() - newXSpan * clampedXRatio;
+
+    // Новая правая граница окна по X.
     const double newXMax = newXMin + newXSpan;
+
+    // Новая нижняя граница окна по Y.
     const double newYMin = anchor.y() - newYSpan * clampedYRatio;
+
+    // Новая верхняя граница окна по Y.
     const double newYMax = newYMin + newYSpan;
 
     // Применяем новый диапазон.
